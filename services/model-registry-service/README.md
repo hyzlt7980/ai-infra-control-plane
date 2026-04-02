@@ -1,8 +1,14 @@
 # model-registry-service
 
-Starter Go + Gin service for the AI inference control plane.
+Go + Gin service for registering and reading model metadata.
 
 ## Endpoints
-- \'GET /healthz\'
-- \'GET /readyz\'
-- \'GET /v1/ping\' (placeholder)
+- `GET /healthz`
+- `GET /readyz`
+- `POST /models/register`
+- `GET /models`
+- `GET /models/:name`
+
+## Notes
+- Uses in-memory storage (non-persistent).
+- Validates required fields for registration payload.

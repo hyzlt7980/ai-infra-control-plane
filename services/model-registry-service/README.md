@@ -9,6 +9,7 @@ Go + Gin service for registering and reading model metadata.
 - `GET /models`
 - `GET /models/:name`
 
-## Notes
-- Uses in-memory storage (non-persistent).
-- Validates required fields for registration payload.
+## API notes
+- Uses stable JSON envelopes (`status`, plus payload object).
+- Normalizes `model_name` to lowercase for consistent cross-service lookup.
+- In-memory storage only (non-persistent).

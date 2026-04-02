@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  lint-and-smoke:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,10 +21,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Go smoke build
+      - name: Go build + tests
         run: |
           for svc in api-gateway model-registry-service deployment-manager-service model-router-service history-service; do
-            (cd services/$svc && go mod tidy && go build ./...)
+            (cd services/$svc && go mod download && go test ./... && go build ./...)
           done
 
       - name: Python smoke check

@@ -35,23 +35,17 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "history-service",
-			"status":  "ok",
-		})
+		c.JSON(http.StatusOK, gin.H{"service": "history-service", "status": "ok"})
 	})
 
 	router.GET("/readyz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "history-service",
-			"status":  "ready",
-		})
+		c.JSON(http.StatusOK, gin.H{"service": "history-service", "status": "ready"})
 	})
 
 	router.POST("/history", func(c *gin.Context) {
 		var req createHistoryRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid history payload", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "invalid history payload", "details": err.Error()})
 			return
 		}
 
@@ -68,7 +62,7 @@ func main() {
 		store.records[record.RequestID] = record
 		store.mu.Unlock()
 
-		c.JSON(http.StatusCreated, gin.H{"message": "history record created", "record": record})
+		c.JSON(http.StatusCreated, gin.H{"status": "success", "record": record})
 	})
 
 	router.GET("/history/:request_id", func(c *gin.Context) {
@@ -79,11 +73,11 @@ func main() {
 		store.mu.RUnlock()
 
 		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{"error": "history record not found", "request_id": requestID})
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "error": "history record not found", "request_id": requestID})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"record": record})
+		c.JSON(http.StatusOK, gin.H{"status": "success", "record": record})
 	})
 
 	_ = router.Run(":8080")

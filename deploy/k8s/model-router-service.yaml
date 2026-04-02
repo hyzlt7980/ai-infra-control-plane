@@ -18,6 +18,15 @@ spec:
         image: ghcr.io/example/model-router-service:latest
         ports:
         - containerPort: 8080
+        env:
+          - name: MODEL_REGISTRY_SERVICE_URL
+            value: http://model-registry-service.ai-infra.svc.cluster.local
+          - name: DEPLOYMENT_MANAGER_SERVICE_URL
+            value: http://deployment-manager-service.ai-infra.svc.cluster.local
+          - name: HISTORY_SERVICE_URL
+            value: http://history-service.ai-infra.svc.cluster.local
+          - name: TIMESERIES_INFERENCE_SERVICE_URL
+            value: http://timeseries-inference-service.ai-infra.svc.cluster.local
         livenessProbe:
           httpGet:
             path: /healthz

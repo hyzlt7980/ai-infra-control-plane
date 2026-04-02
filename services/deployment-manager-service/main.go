@@ -55,6 +55,8 @@ type CreateDeploymentResponse struct {
 	Replicas      int32  `json:"replicas"`
 	ContainerPort int32  `json:"container_port"`
 	ServiceName   string `json:"service_name"`
+	ServicePort   int32  `json:"service_port"`
+	ServiceURL    string `json:"service_url"`
 }
 
 type GetDeploymentResponse struct {
@@ -64,6 +66,9 @@ type GetDeploymentResponse struct {
 	ReadyReplicas     int32  `json:"ready_replicas"`
 	AvailableReplicas int32  `json:"available_replicas"`
 	ServiceName       string `json:"service_name"`
+	ServicePort       int32  `json:"service_port"`
+	ServiceURL        string `json:"service_url"`
+	Ready             bool   `json:"ready"`
 	StatusSummary     string `json:"status_summary"`
 }
 
@@ -77,7 +82,9 @@ type DeleteDeploymentResponse struct {
 }
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Status  string `json:"status"`
+	Error   string `json:"error"`
+	Details string `json:"details,omitempty"`
 }
 
 func main() {
@@ -228,14 +235,16 @@ func (s *Server) createDeployment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, CreateDeploymentResponse{
+	c.JSON(http.StatusCreated, gin.H{"status": "success", "deployment": CreateDeploymentResponse{
 		Name:          name,
 		Namespace:     s.cfg.Namespace,
 		Image:         image,
 		Replicas:      replicas,
 		ContainerPort: containerPort,
 		ServiceName:   name,
-	})
+		ServicePort:   containerPort,
+		ServiceURL:    buildServiceURL(name, s.cfg.Namespace, containerPort),
+	}})
 }
 
 func (s *Server) getDeployment(c *gin.Context) {
@@ -254,8 +263,12 @@ func (s *Server) getDeployment(c *gin.Context) {
 	}
 
 	serviceName := ""
-	if _, err := s.kubeClient.CoreV1().Services(s.cfg.Namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
+	servicePort := int32(0)
+	if svc, err := s.kubeClient.CoreV1().Services(s.cfg.Namespace).Get(ctx, name, metav1.GetOptions{}); err == nil {
 		serviceName = name
+		if len(svc.Spec.Ports) > 0 {
+			servicePort = svc.Spec.Ports[0].Port
+		}
 	}
 
 	replicas := int32(0)
@@ -263,15 +276,19 @@ func (s *Server) getDeployment(c *gin.Context) {
 		replicas = *dep.Spec.Replicas
 	}
 
-	c.JSON(http.StatusOK, GetDeploymentResponse{
+	statusSummary := summarizeStatus(dep)
+	c.JSON(http.StatusOK, gin.H{"status": "success", "deployment": GetDeploymentResponse{
 		Name:              dep.Name,
 		Namespace:         dep.Namespace,
 		Replicas:          replicas,
 		ReadyReplicas:     dep.Status.ReadyReplicas,
 		AvailableReplicas: dep.Status.AvailableReplicas,
 		ServiceName:       serviceName,
-		StatusSummary:     summarizeStatus(dep),
-	})
+		ServicePort:       servicePort,
+		ServiceURL:        buildServiceURL(serviceName, dep.Namespace, servicePort),
+		Ready:             statusSummary == "healthy",
+		StatusSummary:     statusSummary,
+	}})
 }
 
 func (s *Server) deleteDeployment(c *gin.Context) {
@@ -299,14 +316,14 @@ func (s *Server) deleteDeployment(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, DeleteDeploymentResponse{
+	c.JSON(http.StatusOK, gin.H{"status": "success", "result": DeleteDeploymentResponse{
 		Name:             name,
 		Namespace:        s.cfg.Namespace,
 		ServiceName:      name,
 		DeploymentExists: deploymentExisted,
 		ServiceExists:    serviceExisted,
 		Deleted:          deploymentExisted || serviceExisted,
-	})
+	}})
 }
 
 func buildDeployment(name, namespace, image string, replicas, containerPort int32) *appsv1.Deployment {
@@ -366,7 +383,14 @@ func summarizeStatus(dep *appsv1.Deployment) string {
 }
 
 func respondErr(c *gin.Context, status int, message string) {
-	c.JSON(status, ErrorResponse{Error: message})
+	c.JSON(status, ErrorResponse{Status: "error", Error: message})
+}
+
+func buildServiceURL(name, namespace string, port int32) string {
+	if name == "" || namespace == "" || port < 1 {
+		return ""
+	}
+	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", name, namespace, port)
 }
 
 func getEnvOrDefault(key, fallback string) string {

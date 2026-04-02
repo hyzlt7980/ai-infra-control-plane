@@ -31,10 +31,14 @@ func TestPostDeploymentsCreatesDeploymentAndService(t *testing.T) {
 		t.Fatalf("expected 201, got %d body=%s", resp.Code, resp.Body.String())
 	}
 
-	var payload CreateDeploymentResponse
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
+	var wrapper struct {
+		Status     string                   `json:"status"`
+		Deployment CreateDeploymentResponse `json:"deployment"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &wrapper); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
+	payload := wrapper.Deployment
 	if payload.Image != "example/image:1" || payload.ContainerPort != 8000 || payload.Replicas != 1 {
 		t.Fatalf("unexpected defaults in response: %+v", payload)
 	}
@@ -87,10 +91,14 @@ func TestGetDeploymentReturnsStatus(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", resp.Code, resp.Body.String())
 	}
 
-	var payload GetDeploymentResponse
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
+	var wrapper struct {
+		Status     string                `json:"status"`
+		Deployment GetDeploymentResponse `json:"deployment"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &wrapper); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
+	payload := wrapper.Deployment
 	if payload.Name != "timeseries-v1" || payload.Namespace != "ai-infra" || payload.ServiceName != "timeseries-v1" {
 		t.Fatalf("unexpected payload identity: %+v", payload)
 	}
@@ -113,10 +121,14 @@ func TestDeleteDeploymentIsIdempotent(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", resp.Code, resp.Body.String())
 	}
 
-	var payload DeleteDeploymentResponse
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
+	var wrapper struct {
+		Status string                   `json:"status"`
+		Result DeleteDeploymentResponse `json:"result"`
+	}
+	if err := json.Unmarshal(resp.Body.Bytes(), &wrapper); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
+	payload := wrapper.Result
 	if payload.Deleted {
 		t.Fatalf("expected deleted=false when nothing existed: %+v", payload)
 	}

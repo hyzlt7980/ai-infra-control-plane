@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-router-service
+  namespace: ai-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-router-service
+  template:
+    metadata:
+      labels:
+        app: model-router-service
+    spec:
+      containers:
+      - name: model-router-service
+        image: ghcr.io/example/model-router-service:latest
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-router-service
+  namespace: ai-infra
+spec:
+  selector:
+    app: model-router-service
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http

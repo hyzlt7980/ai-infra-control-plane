@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-registry-service
+  namespace: ai-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-registry-service
+  template:
+    metadata:
+      labels:
+        app: model-registry-service
+    spec:
+      containers:
+      - name: model-registry-service
+        image: ghcr.io/example/model-registry-service:latest
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-registry-service
+  namespace: ai-infra
+spec:
+  selector:
+    app: model-registry-service
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http

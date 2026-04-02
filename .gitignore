@@ -1,0 +1,11 @@
+# Go
+bin/
+*.test
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store

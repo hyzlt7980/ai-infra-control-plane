@@ -24,7 +24,7 @@ This repository contains starter scaffolding for a Kubernetes-based AI inference
 ```
 
 ## What is implemented now
-- Starter service entrypoints with health endpoints only
+- Functional first-pass Go services for model registry, routing, and history (in-memory)
 - Service-level Dockerfiles
 - Placeholder Kubernetes Deployment + Service manifests
 - Basic CI smoke workflow

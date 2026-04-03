@@ -8,6 +8,7 @@ Go + Gin service for writing and reading inference history records.
 - `POST /history`
 - `GET /history/:request_id`
 
-## Notes
-- Uses in-memory storage (non-persistent).
+## API notes
+- Uses stable JSON envelopes (`status`, plus payload object).
 - `created_at` is generated server-side in UTC.
+- In-memory storage only (non-persistent).

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REGISTRY="${IMAGE_REGISTRY:-ghcr.io/example}"
+TAG="${IMAGE_TAG:-latest}"
+PUSH="${PUSH_IMAGES:-false}"
+
 services=(
   api-gateway
   model-registry-service
@@ -11,5 +16,13 @@ services=(
 )
 
 for svc in "${services[@]}"; do
-  echo "docker build -t ghcr.io/example/${svc}:latest services/${svc}"
+  image="${REGISTRY}/${svc}:${TAG}"
+  echo "[build-images] building ${image}"
+  docker build -t "${image}" "${ROOT_DIR}/services/${svc}"
+  if [[ "${PUSH}" == "true" ]]; then
+    echo "[build-images] pushing ${image}"
+    docker push "${image}"
+  fi
 done
+
+echo "[build-images] complete"

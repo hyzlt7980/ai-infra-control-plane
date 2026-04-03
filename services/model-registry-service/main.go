@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -35,40 +36,34 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "model-registry-service",
-			"status":  "ok",
-		})
+		c.JSON(http.StatusOK, gin.H{"service": "model-registry-service", "status": "ok"})
 	})
 
 	router.GET("/readyz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"service": "model-registry-service",
-			"status":  "ready",
-		})
+		c.JSON(http.StatusOK, gin.H{"service": "model-registry-service", "status": "ready"})
 	})
 
 	router.POST("/models/register", func(c *gin.Context) {
 		var req registerModelRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid model registration payload", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "invalid model registration payload", "details": err.Error()})
 			return
 		}
 
 		model := Model{
-			ModelName:     req.ModelName,
-			ModelType:     req.ModelType,
-			Version:       req.Version,
-			Image:         req.Image,
+			ModelName:     strings.ToLower(strings.TrimSpace(req.ModelName)),
+			ModelType:     strings.TrimSpace(req.ModelType),
+			Version:       strings.TrimSpace(req.Version),
+			Image:         strings.TrimSpace(req.Image),
 			ContainerPort: req.ContainerPort,
-			Status:        req.Status,
+			Status:        strings.TrimSpace(req.Status),
 		}
 
 		store.mu.Lock()
 		store.models[model.ModelName] = model
 		store.mu.Unlock()
 
-		c.JSON(http.StatusCreated, gin.H{"message": "model registered", "model": model})
+		c.JSON(http.StatusCreated, gin.H{"status": "success", "model": model})
 	})
 
 	router.GET("/models", func(c *gin.Context) {
@@ -79,22 +74,22 @@ func main() {
 		}
 		store.mu.RUnlock()
 
-		c.JSON(http.StatusOK, gin.H{"models": models})
+		c.JSON(http.StatusOK, gin.H{"status": "success", "models": models})
 	})
 
 	router.GET("/models/:name", func(c *gin.Context) {
-		name := c.Param("name")
+		name := strings.ToLower(strings.TrimSpace(c.Param("name")))
 
 		store.mu.RLock()
 		model, exists := store.models[name]
 		store.mu.RUnlock()
 
 		if !exists {
-			c.JSON(http.StatusNotFound, gin.H{"error": "model not found", "model_name": name})
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "error": "model not found", "model_name": name})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"model": model})
+		c.JSON(http.StatusOK, gin.H{"status": "success", "model": model})
 	})
 
 	_ = router.Run(":8080")

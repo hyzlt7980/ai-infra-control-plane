@@ -24,7 +24,10 @@ This repository contains starter scaffolding for a Kubernetes-based AI inference
 ```
 
 ## What is implemented now
-- Functional first-pass Go services for model registry, routing, and history (in-memory)
+- Functional first-pass Go services for model registry, routing, and history
+- `model-registry-service` and `history-service` support two storage backends:
+  - `STORE_BACKEND=memory` (default)
+  - `STORE_BACKEND=mysql` with Redis cache-aside reads
 - Service-level Dockerfiles
 - Kubernetes manifests for all services, including RBAC for deployment manager
 - Basic CI smoke workflow
@@ -42,6 +45,35 @@ Apply placeholder manifests:
 ```bash
 kubectl apply -k deploy/k8s/
 ```
+
+## Stage-4 compatible persistence (MySQL + Redis)
+
+For local verification of stage-4 request flow while keeping existing API contracts unchanged, start MySQL + Redis + the two storage services:
+
+```bash
+docker compose up --build mysql redis model-registry-service history-service
+```
+
+### Storage environment variables
+
+Both `model-registry-service` and `history-service` support:
+
+- `STORE_BACKEND`: `memory` (default) or `mysql`
+- `MYSQL_DSN`: default `root:root@tcp(localhost:3306)/ai_control_plane?parseTime=true`
+- `REDIS_ADDR`: default `localhost:6379`
+- `REDIS_PASSWORD`: default empty
+- `REDIS_DB`: default `0`
+- `CACHE_TTL`: default `60s`
+
+### SQL migrations
+
+The baseline migration is at:
+
+- `migrations/0001_init_models_and_history.sql`
+
+It creates:
+- `models` table + model lookup index
+- `history_records` table + query indexes for model/status timeline reads
 
 
 ## deployment-manager-service quick usage

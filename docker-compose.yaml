@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ai-infra-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ai_control_plane
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7.4
+    container_name: ai-infra-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  model-registry-service:
+    build:
+      context: ./services/model-registry-service
+    environment:
+      STORE_BACKEND: mysql
+      MYSQL_DSN: root:root@tcp(mysql:3306)/ai_control_plane?parseTime=true
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      CACHE_TTL: 60s
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "18081:8080"
+
+  history-service:
+    build:
+      context: ./services/history-service
+    environment:
+      STORE_BACKEND: mysql
+      MYSQL_DSN: root:root@tcp(mysql:3306)/ai_control_plane?parseTime=true
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      CACHE_TTL: 60s
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - "18082:8080"
+
+volumes:
+  mysql-data:
+  redis-data:

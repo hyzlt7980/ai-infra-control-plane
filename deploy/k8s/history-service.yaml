@@ -16,6 +16,28 @@ spec:
       containers:
       - name: history-service
         image: ghcr.io/example/history-service:latest
+        env:
+        - name: STORE_BACKEND
+          value: "mysql"
+        - name: MYSQL_DSN
+          valueFrom:
+            secretKeyRef:
+              name: ai-infra-data-backends
+              key: mysql_dsn
+        - name: REDIS_ADDR
+          valueFrom:
+            secretKeyRef:
+              name: ai-infra-data-backends
+              key: redis_addr
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ai-infra-data-backends
+              key: redis_password
+        - name: REDIS_DB
+          value: "0"
+        - name: CACHE_TTL
+          value: "60s"
         ports:
         - containerPort: 8080
         livenessProbe:

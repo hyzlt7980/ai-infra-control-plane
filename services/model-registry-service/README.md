@@ -9,6 +9,15 @@ Go + Gin service for registering and reading model metadata.
 - `GET /models`
 - `GET /models/:name`
 
-## Notes
-- Uses in-memory storage (non-persistent).
-- Validates required fields for registration payload.
+## Storage backends
+- `STORE_BACKEND=memory` (default): in-memory storage.
+- `STORE_BACKEND=mysql`: MySQL persistence + Redis cache-aside for reads.
+
+## Environment variables
+- `STORE_BACKEND` (`memory` | `mysql`, default `memory`)
+- `MYSQL_DSN` (default `root:root@tcp(localhost:3306)/ai_control_plane?parseTime=true`)
+- `REDIS_ADDR` (default `localhost:6379`)
+- `REDIS_PASSWORD` (default empty)
+- `REDIS_DB` (default `0`)
+- `CACHE_TTL` (default `60s`)
+- `SERVER_ADDR` (default `:8080`)

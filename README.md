@@ -31,6 +31,7 @@ This repository contains starter scaffolding for a Kubernetes-based AI inference
 - Service-level Dockerfiles
 - Kubernetes manifests for all services, including RBAC for deployment manager
 - Basic CI smoke workflow
+- Minimal CD workflow for changed services on `main` (`.github/workflows/cd-minimal.yaml`)
 
 ## Not implemented yet
 - Production routing/deployment policy logic
@@ -45,6 +46,21 @@ Apply placeholder manifests:
 ```bash
 kubectl apply -k deploy/k8s/
 ```
+
+## Minimal CD workflow
+
+On push to `main`, workflow `cd-minimal`:
+
+1. Detects changed folders under `services/`
+2. Builds and pushes changed service images to GHCR with tags:
+   - `ghcr.io/<owner>/<service>:<git-sha>`
+   - `ghcr.io/<owner>/<service>:latest`
+3. Updates Kubernetes Deployments in namespace `ai-infra` to the SHA tag
+4. Runs `kubectl apply -k deploy/k8s/`
+
+Required repository secret:
+
+- `KUBE_CONFIG_DATA`: base64 encoded kubeconfig content used by the deploy step.
 
 ## Stage-4 compatible persistence (MySQL + Redis)
 

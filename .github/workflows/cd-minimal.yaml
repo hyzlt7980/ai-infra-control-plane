@@ -1,0 +1,111 @@
+name: cd-minimal
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changed.outputs.all_changed_files }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: changed
+        uses: tj-actions/changed-files@v46
+        with:
+          json: true
+          dir_names: true
+          dir_names_max_depth: 2
+          files: |
+            services/**
+
+  build-and-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter service directories
+        id: filter
+        run: |
+          if [[ ! -f "${{ matrix.service }}/Dockerfile" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          svc="${{ matrix.service#services/ }}"
+          echo "service=$svc" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        if: steps.filter.outputs.skip != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: steps.filter.outputs.skip != 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        if: steps.filter.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ steps.filter.outputs.service }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ steps.filter.outputs.service }}:latest
+
+  deploy:
+    needs:
+      - detect-changes
+      - build-and-push
+    if: needs.detect-changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+        run: |
+          if [[ -z "$KUBE_CONFIG_DATA" ]]; then
+            echo "KUBE_CONFIG_DATA is required" >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          echo "$KUBE_CONFIG_DATA" | base64 -d > "$HOME/.kube/config"
+
+      - name: Deploy changed services
+        run: |
+          for dir in $(jq -r '.[]' <<<'${{ needs.detect-changes.outputs.services }}'); do
+            if [[ ! -f "$dir/Dockerfile" ]]; then
+              continue
+            fi
+            svc="${dir#services/}"
+            kubectl -n ai-infra set image deployment/$svc $svc=ghcr.io/${{ github.repository_owner }}/$svc:${{ github.sha }} --record
+          done
+          kubectl apply -k deploy/k8s/
